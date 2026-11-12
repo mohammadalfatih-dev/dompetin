@@ -1,0 +1,6 @@
+{
+  "name": "Dompetin - Personal Finance Management",
+  "description": "Modern personal finance platform inspired by Moni.id with multi-wallet management, transaction tracking, category budgets, savings goals, and local-first persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
