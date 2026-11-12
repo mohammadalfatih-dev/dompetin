@@ -42,19 +42,13 @@ export function generateUUID(): string {
  * Initial Indonesian Seed Data
  */
 export async function seedInitialData(force = false) {
-  const walletCount = await db.wallets.count();
-  if (walletCount > 0 && !force) {
-    return;
-  }
+  const [walletCount, categoryCount] = await Promise.all([
+    db.wallets.count(),
+    db.categories.count(),
+  ]);
 
-  if (force) {
-    await db.transaction('rw', [db.wallets, db.categories, db.transactions, db.budgets, db.savingsGoals, db.settings], async () => {
-      await db.wallets.clear();
-      await db.categories.clear();
-      await db.transactions.clear();
-      await db.budgets.clear();
-      await db.savingsGoals.clear();
-    });
+  if (walletCount > 0 && categoryCount > 0 && !force) {
+    return;
   }
 
   const now = new Date();
@@ -443,11 +437,18 @@ export async function seedInitialData(force = false) {
   };
 
   await db.transaction('rw', [db.wallets, db.categories, db.transactions, db.budgets, db.savingsGoals, db.settings], async () => {
-    await db.wallets.bulkAdd(defaultWallets);
-    await db.categories.bulkAdd(defaultCategories);
-    await db.transactions.bulkAdd(defaultTransactions);
-    await db.budgets.bulkAdd(defaultBudgets);
-    await db.savingsGoals.bulkAdd(defaultSavingsGoals);
+    if (force) {
+      await db.wallets.clear();
+      await db.categories.clear();
+      await db.transactions.clear();
+      await db.budgets.clear();
+      await db.savingsGoals.clear();
+    }
+    await db.wallets.bulkPut(defaultWallets);
+    await db.categories.bulkPut(defaultCategories);
+    await db.transactions.bulkPut(defaultTransactions);
+    await db.budgets.bulkPut(defaultBudgets);
+    await db.savingsGoals.bulkPut(defaultSavingsGoals);
     await db.settings.put(defaultSettings);
   });
 }
@@ -499,11 +500,11 @@ export async function importDatabaseBackup(jsonString: string): Promise<boolean>
       await db.budgets.clear();
       await db.savingsGoals.clear();
 
-      if (wallets?.length) await db.wallets.bulkAdd(wallets);
-      if (categories?.length) await db.categories.bulkAdd(categories);
-      if (transactions?.length) await db.transactions.bulkAdd(transactions);
-      if (budgets?.length) await db.budgets.bulkAdd(budgets);
-      if (savingsGoals?.length) await db.savingsGoals.bulkAdd(savingsGoals);
+      if (wallets?.length) await db.wallets.bulkPut(wallets);
+      if (categories?.length) await db.categories.bulkPut(categories);
+      if (transactions?.length) await db.transactions.bulkPut(transactions);
+      if (budgets?.length) await db.budgets.bulkPut(budgets);
+      if (savingsGoals?.length) await db.savingsGoals.bulkPut(savingsGoals);
       if (settings) await db.settings.put(settings);
     });
 

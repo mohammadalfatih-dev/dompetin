@@ -40,7 +40,9 @@ export default function App() {
 
   // Initialize DB and sync dark mode class on mount
   useEffect(() => {
-    seedInitialData(false);
+    seedInitialData(false).catch((err) => {
+      console.warn('Initial seeding note:', err);
+    });
   }, []);
 
   useEffect(() => {
