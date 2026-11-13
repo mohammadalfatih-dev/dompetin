@@ -34,7 +34,6 @@ interface SettingsViewProps {
   onAddCategory: (data: Omit<Category, 'id' | 'createdAt'>) => Promise<any>;
   onUpdateCategory: (id: string, updates: Partial<Category>) => Promise<any>;
   onDeleteCategory: (id: string) => Promise<any>;
-  onResetDemoData: () => Promise<void>;
   onClearAllData: () => Promise<void>;
 }
 
@@ -45,7 +44,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
-  onResetDemoData,
   onClearAllData,
 }) => {
   // Category management states
@@ -60,7 +58,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Backup / Restore states
   const [backupMessage, setBackupMessage] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Cloud sync settings
   const [supabaseUrl, setSupabaseUrl] = useState(settings?.supabaseUrl || '');
@@ -398,25 +395,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* Reset & Clear actions */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Reset Data Contoh (Demo)</span>
-            </button>
-
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Kosongkan Semua Data</span>
-            </button>
-          </div>
+        {/* Clear data action */}
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>Kosongkan Semua Data</span>
+          </button>
         </div>
       </div>
 
@@ -661,40 +648,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Reset Confirmation */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Reset ke Data Contoh?
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Ini akan menggantikan data Anda dengan contoh data finansial awal (Bank BCA, Mandiri,
-              GoPay, dsb.). Pastikan Anda sudah mengekspor backup jika ingin menyimpan catatan lama.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={async () => {
-                  await onResetDemoData();
-                  setShowResetConfirm(false);
-                  setBackupMessage('Data contoh (demo) berhasil dimuat kembali!');
-                  setTimeout(() => setBackupMessage(''), 4000);
-                }}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] rounded-xl shadow-xs"
-              >
-                Muat Ulang Demo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Clear Confirmation */}
       {showClearConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
@@ -703,8 +656,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Kosongkan Seluruh Data?
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Seluruh dompet, transaksi, kategori, anggaran, dan impian tabungan akan dihapus
-              permanen dari browser ini.
+              Seluruh dompet, transaksi, anggaran, dan impian tabungan akan dihapus
+              permanen dari browser ini, sedangkan kategori bawaan tetap tersedia.
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button

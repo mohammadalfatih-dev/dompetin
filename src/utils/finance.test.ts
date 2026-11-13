@@ -5,8 +5,12 @@ import {
   parseAmount,
   calculateWalletBalances,
   calculateTotals,
+  calculateCategoryBreakdown,
   calculateBudgetStatus,
+  generateMonthlyCashFlow,
   filterTransactionsByDateRange,
+  LEGACY_DEMO_IDS,
+  isLegacyDemoId,
 } from './finance';
 import { Wallet, Transaction, Category, Budget } from '../types/finance';
 
@@ -220,3 +224,49 @@ test('filterTransactionsByDateRange filters transactions accurately', () => {
   assert.equal(filteredMonth.length, 1);
   assert.equal(filteredMonth[0].id, '1');
 });
+
+test('zero-state calculations return clean zeros and empty breakdowns even with categories loaded', () => {
+  const categories: Category[] = [
+    {
+      id: 'cat-food',
+      name: 'Makanan & Minuman',
+      type: 'expense',
+      icon: 'Utensils',
+      color: '#EA580C',
+      isSystem: true,
+      createdAt: '2026-01-01',
+    },
+  ];
+
+  assert.deepEqual(calculateWalletBalances([], []), {});
+  assert.deepEqual(calculateTotals([]), {
+    totalIncome: 0,
+    totalExpense: 0,
+    netFlow: 0,
+    transferVolume: 0,
+  });
+  assert.deepEqual(calculateCategoryBreakdown([], categories, 'expense'), []);
+  assert.deepEqual(calculateCategoryBreakdown([], categories, 'income'), []);
+  assert.deepEqual(calculateBudgetStatus([], [], categories, '2026-11'), []);
+
+  const trend = generateMonthlyCashFlow([], 6, new Date('2026-11-12T10:00:00Z'));
+  assert.equal(trend.length, 6);
+  assert.equal(
+    trend.some((m) => m.income !== 0 || m.expense !== 0 || m.net !== 0),
+    false
+  );
+});
+
+test('isLegacyDemoId identifies only known legacy demo IDs and preserves user UUIDs', () => {
+  assert.equal(LEGACY_DEMO_IDS.wallets.length, 5);
+  assert.equal(isLegacyDemoId('wallets', 'w-bca'), true);
+  assert.equal(isLegacyDemoId('transactions', 'tx-1'), true);
+  assert.equal(isLegacyDemoId('budgets', 'b-food'), true);
+  assert.equal(isLegacyDemoId('savingsGoals', 'sg-emergency'), true);
+
+  assert.equal(isLegacyDemoId('wallets', 'user-wallet-uuid-123'), false);
+  assert.equal(isLegacyDemoId('transactions', 'user-tx-uuid-456'), false);
+  assert.equal(isLegacyDemoId('budgets', 'user-budget-uuid-789'), false);
+  assert.equal(isLegacyDemoId('savingsGoals', 'user-goal-uuid-012'), false);
+});
+

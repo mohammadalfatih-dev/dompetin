@@ -371,3 +371,25 @@ export function formatDateIndonesian(dateString: string, includeDayName = false)
   }
   return formatted;
 }
+
+/**
+ * Exact IDs previously created by legacy demo seeding.
+ * Used for one-time cleanup without touching user-created records.
+ */
+export const LEGACY_DEMO_IDS = {
+  wallets: ['w-bca', 'w-mandiri', 'w-gopay', 'w-ovo', 'w-cash'],
+  transactions: [
+    'tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5', 'tx-6', 'tx-7',
+    'tx-8', 'tx-9', 'tx-10', 'tx-11', 'tx-12', 'tx-13',
+  ],
+  budgets: ['b-food', 'b-shopping', 'b-transport', 'b-bills', 'b-ent'],
+  savingsGoals: ['sg-emergency', 'sg-holiday', 'sg-laptop'],
+} as const;
+
+export function isLegacyDemoId(
+  collection: keyof typeof LEGACY_DEMO_IDS,
+  id: string
+): boolean {
+  return (LEGACY_DEMO_IDS[collection] as readonly string[]).includes(id);
+}
+

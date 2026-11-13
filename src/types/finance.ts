@@ -85,6 +85,7 @@ export interface AppSettings {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   lastSyncedAt?: string;
+  cleanStateMigrated?: boolean;
 }
 
 export type DateFilterType = 'today' | 'this_week' | 'this_month' | 'this_year' | 'all' | 'custom';

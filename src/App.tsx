@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFinanceData } from './hooks/useFinanceData';
-import { seedInitialData } from './database/db';
+import { initializeDatabase } from './database/db';
 import { AppLayout } from './layouts/AppLayout';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { TransactionsView } from './features/transactions/TransactionsView';
@@ -38,10 +38,10 @@ export default function App() {
     return false;
   });
 
-  // Initialize DB and sync dark mode class on mount
+  // Initialize DB in clean state and sync dark mode class on mount
   useEffect(() => {
-    seedInitialData(false).catch((err) => {
-      console.warn('Initial seeding note:', err);
+    initializeDatabase().catch((err) => {
+      console.warn('Database initialization note:', err);
     });
   }, []);
 
@@ -197,7 +197,6 @@ export default function App() {
           onAddCategory={finance.addCategory}
           onUpdateCategory={finance.updateCategory}
           onDeleteCategory={finance.deleteCategory}
-          onResetDemoData={finance.resetToDemoData}
           onClearAllData={finance.clearAllData}
         />
       )}
@@ -210,6 +209,12 @@ export default function App() {
           setEditingTransaction(null);
         }}
         onSave={handleSaveTransaction}
+        onAddWallet={finance.addWallet}
+        onNavigateToWallets={() => {
+          setIsTxModalOpen(false);
+          setEditingTransaction(null);
+          setCurrentTab('wallets');
+        }}
         initialTransaction={editingTransaction}
         wallets={finance.wallets}
         categories={finance.categories}

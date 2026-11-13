@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, generateUUID, seedInitialData } from '../database/db';
+import { db, defaultCategories, generateUUID } from '../database/db';
 import {
   Wallet,
   Category,
@@ -248,14 +248,11 @@ export function useFinanceData() {
     await db.settings.update('current', updates);
   };
 
-  const resetToDemoData = async () => {
-    await seedInitialData(true);
-  };
-
   const clearAllData = async () => {
     await db.transaction('rw', [db.wallets, db.categories, db.transactions, db.budgets, db.savingsGoals], async () => {
       await db.wallets.clear();
       await db.categories.clear();
+      await db.categories.bulkPut(defaultCategories);
       await db.transactions.clear();
       await db.budgets.clear();
       await db.savingsGoals.clear();
@@ -290,7 +287,6 @@ export function useFinanceData() {
     deleteSavingsGoal,
     addSavingsContribution,
     updateSettings,
-    resetToDemoData,
     clearAllData,
   };
 }

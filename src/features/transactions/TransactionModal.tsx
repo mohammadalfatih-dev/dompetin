@@ -4,15 +4,13 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   ArrowRightLeft,
-  Calendar,
-  Clock,
-  FileText,
   AlertCircle,
+  Wallet as WalletLucide,
+  Plus,
 } from 'lucide-react';
-import { Transaction, TransactionType, Wallet, Category } from '../../types/finance';
+import { Transaction, TransactionType, Wallet, WalletType, Category } from '../../types/finance';
 import { formatCurrency, parseAmount } from '../../utils/finance';
 import { CategoryIcon } from '../../components/CategoryIcon';
-import { WalletIcon } from '../../components/WalletIcon';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -28,6 +26,8 @@ interface TransactionModalProps {
     description: string;
     notes?: string;
   }) => Promise<any>;
+  onAddWallet?: (data: Omit<Wallet, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Wallet>;
+  onNavigateToWallets?: () => void;
   initialTransaction?: Transaction | null;
   wallets: Wallet[];
   categories: Category[];
@@ -38,6 +38,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onAddWallet,
+  onNavigateToWallets,
   initialTransaction,
   wallets,
   categories,
@@ -54,6 +56,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Quick wallet creation state when no wallets exist
+  const [quickWalletName, setQuickWalletName] = useState('');
+  const [quickWalletType, setQuickWalletType] = useState<WalletType>('cash');
+  const [quickWalletBalance, setQuickWalletBalance] = useState('0');
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -74,10 +82,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         const d = String(now.getDate()).padStart(2, '0');
         setType('expense');
         setAmountStr('');
-        // pick default expense category
         const firstExp = categories.find((c) => c.type === 'expense');
         setCategoryId(firstExp ? firstExp.id : '');
-        // pick first available wallet
         setFromWalletId(wallets[0]?.id || '');
         setToWalletId(wallets[1]?.id || '');
         setDate(`${y}-${m}-${d}`);
@@ -86,8 +92,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         setNotes('');
       }
       setError('');
+      setQuickWalletName('');
+      setQuickWalletType('cash');
+      setQuickWalletBalance('0');
     }
-  }, [isOpen, initialTransaction, wallets, categories]);
+    // Only reset form when modal opens or editing target changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialTransaction]);
+
+  useEffect(() => {
+    if (!isOpen || initialTransaction) return;
+    if (!fromWalletId && wallets.length > 0) {
+      setFromWalletId(wallets[0].id);
+    }
+    if (!toWalletId && wallets.length > 1) {
+      setToWalletId(wallets[1].id);
+    }
+    if (!categoryId && type !== 'transfer') {
+      const firstCat = categories.find((c) => c.type === type);
+      if (firstCat) setCategoryId(firstCat.id);
+    }
+  }, [isOpen, initialTransaction, wallets, categories, fromWalletId, toWalletId, categoryId, type]);
 
   if (!isOpen) return null;
 
@@ -102,6 +127,33 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const handleQuickAdd = (addition: number) => {
     const current = parseAmount(amountStr);
     setAmountStr((current + addition).toString());
+  };
+
+  const handleQuickCreateWallet = async () => {
+    if (!onAddWallet) return;
+    if (!quickWalletName.trim()) {
+      setError('Masukkan nama dompet terlebih dahulu.');
+      return;
+    }
+
+    try {
+      setIsCreatingWallet(true);
+      setError('');
+      const created = await onAddWallet({
+        name: quickWalletName.trim(),
+        type: quickWalletType,
+        initialBalance: parseAmount(quickWalletBalance),
+        color: quickWalletType === 'bank' ? '#0066AE' : quickWalletType === 'ewallet' ? '#00AED6' : '#16A34A',
+        icon: quickWalletType === 'bank' ? 'Building2' : quickWalletType === 'ewallet' ? 'Smartphone' : 'Banknote',
+      });
+      setFromWalletId(created.id);
+      setQuickWalletName('');
+      setQuickWalletBalance('0');
+    } catch (err: any) {
+      setError(err?.message || 'Gagal membuat dompet.');
+    } finally {
+      setIsCreatingWallet(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -338,41 +390,105 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           )}
 
           {/* Wallets */}
-          {type === 'transfer' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Dari Dompet
-                </label>
-                <select
-                  value={fromWalletId}
-                  onChange={(e) => setFromWalletId(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({formatCurrency(walletBalances[w.id] || 0, 'IDR')})
-                    </option>
-                  ))}
-                </select>
+          {wallets.length === 0 ? (
+            <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 dark:text-amber-300">
+                  <WalletLucide className="w-4 h-4 shrink-0" />
+                  <span>Belum ada dompet. Buat dompet pertamamu untuk mencatat transaksi:</span>
+                </div>
+                {onNavigateToWallets && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToWallets}
+                    className="text-[11px] font-semibold text-[#731331] dark:text-rose-400 hover:underline shrink-0"
+                  >
+                    Buka Menu Dompet
+                  </button>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Ke Dompet Tujuan
-                </label>
-                <select
-                  value={toWalletId}
-                  onChange={(e) => setToWalletId(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({formatCurrency(walletBalances[w.id] || 0, 'IDR')})
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {onAddWallet && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={quickWalletName}
+                    onChange={(e) => setQuickWalletName(e.target.value)}
+                    placeholder="Nama dompet (mis. Tunai / BCA)"
+                    className="sm:col-span-1 px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
+                  />
+                  <select
+                    value={quickWalletType}
+                    onChange={(e) => setQuickWalletType(e.target.value as WalletType)}
+                    className="px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
+                  >
+                    <option value="cash">Uang Tunai</option>
+                    <option value="bank">Rekening Bank</option>
+                    <option value="ewallet">E-Wallet</option>
+                    <option value="savings">Tabungan</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleQuickCreateWallet}
+                    disabled={isCreatingWallet}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] disabled:opacity-50 rounded-xl transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isCreatingWallet ? 'Membuat...' : 'Buat Dompet'}</span>
+                  </button>
+                </div>
+              )}
             </div>
+          ) : type === 'transfer' ? (
+            wallets.length < 2 ? (
+              <div className="p-3.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-900/50 flex items-center justify-between gap-3 text-xs text-sky-900 dark:text-sky-300">
+                <span>Transfer antar dompet membutuhkan minimal 2 dompet aktif.</span>
+                {onNavigateToWallets && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToWallets}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] rounded-xl shrink-0"
+                  >
+                    + Tambah Dompet
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Dari Dompet
+                  </label>
+                  <select
+                    value={fromWalletId}
+                    onChange={(e) => setFromWalletId(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
+                  >
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({formatCurrency(walletBalances[w.id] || 0, 'IDR')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Ke Dompet Tujuan
+                  </label>
+                  <select
+                    value={toWalletId}
+                    onChange={(e) => setToWalletId(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#731331]"
+                  >
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({formatCurrency(walletBalances[w.id] || 0, 'IDR')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )
           ) : (
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
