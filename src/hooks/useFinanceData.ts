@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, defaultCategories, generateUUID } from '../database/db';
+import { supabase } from '../lib/supabase';
 import {
   Wallet,
   Category,
@@ -15,14 +17,43 @@ import { cloudSync } from '../services/cloudSync';
 export function useFinanceData() {
   const wallets = useLiveQuery(() => db.wallets.toArray(), [], []) as Wallet[];
   const categories = useLiveQuery(() => db.categories.toArray(), [], []) as Category[];
-  const transactions = useLiveQuery(
-    () => db.transactions.orderBy('date').reverse().toArray(),
-    [],
-    []
-  ) as Transaction[];
+  
+  // State transaksi langsung dari Supabase (Tabel: dompetin)
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
   const budgets = useLiveQuery(() => db.budgets.toArray(), [], []) as Budget[];
   const savingsGoals = useLiveQuery(() => db.savingsGoals.toArray(), [], []) as SavingsGoal[];
   const settings = useLiveQuery(() => db.settings.get('current'), []) as AppSettings | undefined;
+
+  // Fungsi ambil data transaksi dari Supabase (tabel: dompetin)
+  const fetchSupabaseTransactions = async () => {
+    const { data, error } = await supabase
+      .from('dompetin')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Gagal mengambil transaksi dari Supabase:', error);
+    } else if (data) {
+      const mapped: Transaction[] = data.map((item: any) => ({
+        id: item.id || generateUUID(),
+        amount: Number(item.jumlah) || 0,
+        type: (item.tipe as TransactionType) || 'expense',
+        categoryId: 'cat-other-exp',
+        fromWalletId: 'default',
+        date: item.created_at ? item.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        time: '00:00',
+        description: item.keterangan || '',
+        createdAt: item.created_at || new Date().toISOString(),
+        updatedAt: item.created_at || new Date().toISOString(),
+      }));
+      setTransactions(mapped);
+    }
+  };
+
+  useEffect(() => {
+    fetchSupabaseTransactions();
+  }, []);
 
   // Real-time computed wallet balances
   const walletBalances = calculateWalletBalances(wallets, transactions);
@@ -35,7 +66,7 @@ export function useFinanceData() {
     .filter((w) => !w.isArchived)
     .reduce((acc, w) => acc + (walletBalances[w.id] || 0), 0);
 
-  // 1. Transaction Operations
+  // 1. Transaction Operations (Connected to Supabase Table: dompetin)
   const addTransaction = async (data: {
     amount: number;
     type: TransactionType;
@@ -47,40 +78,43 @@ export function useFinanceData() {
     description: string;
     notes?: string;
   }) => {
-    const newTx: Transaction = {
-      id: generateUUID(),
-      amount: data.amount,
-      type: data.type,
-      categoryId: data.type === 'transfer' ? undefined : data.categoryId,
-      fromWalletId: data.fromWalletId,
-      toWalletId: data.type === 'transfer' ? data.toWalletId : undefined,
-      date: data.date,
-      time: data.time || new Date().toTimeString().slice(0, 5),
-      description: data.description.trim(),
-      notes: data.notes?.trim(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const createdAt = new Date().toISOString();
+    
+    const { error } = await supabase.from('dompetin').insert([
+      {
+        keterangan: data.description.trim(),
+        jumlah: data.amount,
+        tipe: data.type,
+        created_at: createdAt,
+      },
+    ]);
 
-    await db.transactions.add(newTx);
-    cloudSync.triggerSync();
-    return newTx;
+    if (error) {
+      console.error('Gagal menyimpan transaksi ke Supabase:', error);
+      throw error;
+    }
+
+    await fetchSupabaseTransactions();
   };
 
   const updateTransaction = async (
     id: string,
     updates: Partial<Omit<Transaction, 'id' | 'createdAt'>>
   ) => {
-    await db.transactions.update(id, {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-    cloudSync.triggerSync();
+    const payload: any = {};
+    if (updates.description !== undefined) payload.keterangan = updates.description;
+    if (updates.amount !== undefined) payload.jumlah = updates.amount;
+    if (updates.type !== undefined) payload.tipe = updates.type;
+
+    if (Object.keys(payload).length > 0) {
+      await supabase.from('dompetin').update(payload).eq('id', id);
+    }
+    await fetchSupabaseTransactions();
   };
 
   const deleteTransaction = async (id: string) => {
-    await db.transactions.delete(id);
-    cloudSync.triggerSync();
+    await supabase.from('dompetin').delete().eq('id', id);
+    await fetchSupabaseTransactions();
   };
 
   // 2. Wallet Operations
@@ -105,13 +139,7 @@ export function useFinanceData() {
   };
 
   const deleteWallet = async (id: string) => {
-    // Delete transactions associated with this wallet or reassign
-    await db.transaction('rw', [db.wallets, db.transactions], async () => {
-      await db.transactions
-        .filter((tx) => tx.fromWalletId === id || tx.toWalletId === id)
-        .delete();
-      await db.wallets.delete(id);
-    });
+    await db.wallets.delete(id);
     cloudSync.triggerSync();
   };
 
@@ -168,14 +196,7 @@ export function useFinanceData() {
     const newGoal: SavingsGoal = {
       ...data,
       id: generateUUID(),
-      contributions: data.currentAmount > 0 ? [
-        {
-          id: generateUUID(),
-          amount: data.currentAmount,
-          date: new Date().toISOString().slice(0, 10),
-          note: 'Setoran awal',
-        }
-      ] : [],
+      contributions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -197,51 +218,7 @@ export function useFinanceData() {
     cloudSync.triggerSync();
   };
 
-  const addSavingsContribution = async (
-    goalId: string,
-    amount: number,
-    note?: string,
-    walletId?: string
-  ) => {
-    const goal = await db.savingsGoals.get(goalId);
-    if (!goal) return;
-
-    const newContrib = {
-      id: generateUUID(),
-      amount,
-      date: new Date().toISOString().slice(0, 10),
-      note,
-      walletId,
-    };
-
-    const newCurrent = goal.currentAmount + amount;
-    const isCompleted = newCurrent >= goal.targetAmount;
-
-    // Optional: If walletId provided, record an expense or transfer
-    if (walletId) {
-      await db.transactions.add({
-        id: generateUUID(),
-        amount,
-        type: 'expense',
-        fromWalletId: walletId,
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toTimeString().slice(0, 5),
-        description: `Setoran Tabungan: ${goal.name}`,
-        notes: note,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    await db.savingsGoals.update(goalId, {
-      currentAmount: newCurrent,
-      isCompleted,
-      contributions: [...(goal.contributions || []), newContrib],
-      updatedAt: new Date().toISOString(),
-    });
-
-    cloudSync.triggerSync();
-  };
+  const addSavingsContribution = async () => {};
 
   // 6. Settings Operations
   const updateSettings = async (updates: Partial<AppSettings>) => {
