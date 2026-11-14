@@ -38,6 +38,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 }) => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(cloudSync.getStatus());
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   useEffect(() => {
     const unsub = cloudSync.subscribe((status) => {
@@ -181,6 +182,35 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         aria-label="Mobile Navigation"
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 px-2 py-1 shadow-lg"
       >
+        {showMoreMenu && (
+          <div className="absolute bottom-full right-3 mb-2 w-52 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl">
+            {[
+              { id: 'budgets', label: 'Anggaran', icon: PieChart },
+              { id: 'savings', label: 'Tabungan', icon: Target },
+              { id: 'reports', label: 'Laporan', icon: BarChart3 },
+              { id: 'settings', label: 'Pengaturan', icon: Settings },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onSelectTab(item.id);
+                    setShowMoreMenu(false);
+                  }}
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                    currentTab === item.id
+                      ? 'bg-rose-50 text-[#731331] dark:bg-rose-950/40 dark:text-rose-300'
+                      : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
           {/* 1. Dashboard */}
           <button
@@ -232,23 +262,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <span className="text-[10px] mt-0.5">Dompet</span>
           </button>
 
-          {/* 5. Reports / More */}
+          {/* 5. More menu: budgets, savings, reports, and settings */}
           <button
-            onClick={() => onSelectTab(currentTab === 'settings' ? 'settings' : 'reports')}
+            onClick={() => setShowMoreMenu((open) => !open)}
+            aria-expanded={showMoreMenu}
+            aria-label="Buka menu lainnya"
             className={`flex flex-col items-center justify-center py-1.5 min-h-[44px] transition-colors ${
-              currentTab === 'reports' || currentTab === 'settings'
+              showMoreMenu || ['budgets', 'savings', 'reports', 'settings'].includes(currentTab)
                 ? 'text-[#731331] dark:text-rose-400 font-bold'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            {currentTab === 'settings' ? (
-              <Settings className="w-5 h-5" />
-            ) : (
-              <BarChart3 className="w-5 h-5" />
-            )}
-            <span className="text-[10px] mt-0.5">
-              {currentTab === 'settings' ? 'Pengaturan' : 'Laporan'}
-            </span>
+            <Settings className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">Lainnya</span>
           </button>
         </div>
       </nav>
