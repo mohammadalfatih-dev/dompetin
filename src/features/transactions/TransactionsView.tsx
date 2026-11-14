@@ -426,22 +426,17 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
-              {transactions.length === 0
-                ? 'Belum ada transaksi'
-                : 'Tidak Ada Transaksi Ditemukan'}
+              Tidak Ada Transaksi Ditemukan
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {transactions.length === 0
-                ? 'Mulai catat pemasukan dan pengeluaran pertamamu.'
-                : 'Coba sesuaikan filter pencarian atau tanggal Anda, atau catat transaksi baru.'}
+              Coba sesuaikan filter pencarian atau tanggal Anda, atau catat transaksi baru.
             </p>
           </div>
           <button
             onClick={onOpenAddTransaction}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] rounded-xl shadow-xs transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] rounded-xl shadow-xs transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Transaksi</span>
+            + Catat Transaksi Baru
           </button>
         </div>
       )}

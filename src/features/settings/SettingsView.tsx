@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings, Category } from '../../types/finance';
 import {
-  exportDatabaseBackup,
-  importDatabaseBackup,
-} from '../../database/db';
-import {
   Sun,
   Moon,
   Laptop,
@@ -56,15 +52,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [catError, setCatError] = useState('');
 
   // Backup / Restore states
-  const [backupMessage, setBackupMessage] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Cloud sync settings
-  const [supabaseUrl, setSupabaseUrl] = useState(settings?.supabaseUrl || '');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(settings?.supabaseAnonKey || '');
-  const [cloudSyncEnabled, setCloudSyncEnabled] = useState(settings?.cloudSyncEnabled || false);
-  const [copiedDeviceId, setCopiedDeviceId] = useState(false);
-  const [syncSavedMessage, setSyncSavedMessage] = useState('');
 
   const colors = [
     '#731331', '#EA580C', '#0284C7', '#16A34A', '#8B5CF6', '#F59E0B', '#EC4899', '#64748B', '#0066AE', '#003876'
@@ -75,47 +65,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     'GraduationCap', 'MoreHorizontal', 'Briefcase', 'Laptop', 'Store',
     'TrendingUp', 'Gift', 'PlusCircle', 'Coffee', 'Film', 'Plane', 'Home'
   ];
-
-  const handleExport = async () => {
-    try {
-      const json = await exportDatabaseBackup();
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Dompetin_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setBackupMessage('File backup berhasil diekspor.');
-      setTimeout(() => setBackupMessage(''), 4000);
-    } catch (err: any) {
-      setBackupMessage('Gagal mengekspor data backup: ' + err.message);
-    }
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const content = event.target?.result as string;
-          await importDatabaseBackup(content);
-          setBackupMessage('Data backup berhasil dipulihkan!');
-          setTimeout(() => setBackupMessage(''), 4000);
-        } catch (err: any) {
-          setBackupMessage('Format file tidak valid atau rusak: ' + err.message);
-        }
-      };
-      reader.readAsText(file);
-    } catch (err: any) {
-      setBackupMessage('Gagal membaca file: ' + err.message);
-    }
-  };
 
   const openAddCategory = () => {
     setEditingCategory(null);
@@ -167,23 +116,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const copyDeviceId = () => {
-    if (settings?.deviceId) {
-      navigator.clipboard.writeText(settings.deviceId);
-      setCopiedDeviceId(true);
-      setTimeout(() => setCopiedDeviceId(false), 2000);
-    }
-  };
 
-  const handleSaveCloudSync = async () => {
-    await onUpdateSettings({
-      cloudSyncEnabled,
-      supabaseUrl: supabaseUrl.trim(),
-      supabaseAnonKey: supabaseAnonKey.trim(),
-    });
-    setSyncSavedMessage('Pengaturan sinkronisasi cloud berhasil disimpan.');
-    setTimeout(() => setSyncSavedMessage(''), 3000);
-  };
 
   return (
     <div className="space-y-8 pb-20 md:pb-8 max-w-5xl mx-auto">
@@ -196,15 +129,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Sesuaikan tema visual, kelola kategori, dan cadangkan data lokal Anda
         </p>
       </div>
-
-      {backupMessage && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-2xl border border-emerald-200 dark:border-emerald-900 text-xs flex items-center justify-between">
-          <span>{backupMessage}</span>
-          <button onClick={() => setBackupMessage('')} className="p-1">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* 1. Appearance & Theme */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
@@ -348,158 +272,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Local-First Database & Backup / Restore */}
+      {/* 4. Supabase Data Management */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Shield className="w-4 h-4 text-emerald-600" />
-            <span>Cadangan Data & Pemulihan (Backup & Restore)</span>
+            <span>Pengelolaan Data</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Data Dompetin tersimpan 100% lokal di browser Anda via IndexedDB. Ekspor cadangan file
-            JSON untuk dipindahkan ke perangkat lain.
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Data Dompetin disimpan di akun Supabase Anda.</p>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-          {/* Export button */}
-          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
-            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Ekspor File Cadangan JSON
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Unduh seluruh histori transaksi, dompet, anggaran, dan tabungan dalam file aman.
-            </p>
-            <button
-              onClick={handleExport}
-              className="w-full py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5 text-[#731331]" />
-              <span>Unduh Cadangan (.json)</span>
-            </button>
-          </div>
-
-          {/* Import file */}
-          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
-            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Pulihkan Data dari File Cadangan
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Pilih file cadangan JSON Dompetin untuk memulihkan seluruh data sebelumnya.
-            </p>
-            <label className="w-full py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-              <Upload className="w-3.5 h-3.5 text-[#EA580C]" />
-              <span>Pilih File Backup (.json)</span>
-              <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-            </label>
-          </div>
-        </div>
-
-        {/* Clear data action */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-end gap-3">
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span>Kosongkan Semua Data</span>
+        <div className="flex justify-end">
+          <button onClick={() => setShowClearConfirm(true)} className="px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1">
+            <Trash2 className="w-3 h-3" /><span>Kosongkan Semua Data</span>
           </button>
         </div>
       </div>
 
-      {/* 5. Cloud Database Synchronization (Supabase PostgreSQL) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Cloud className="w-4 h-4 text-sky-600" />
-            <span>Sinkronisasi Cloud (Supabase PostgreSQL)</span>
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Arsitektur hybrid: Transaksi disimpan secara lokal di browser terlebih dahulu
-            (local-first), kemudian otomatis disinkronkan ke Supabase jika terhubung.
-          </p>
-        </div>
-
-        {syncSavedMessage && (
-          <div className="p-3 text-xs bg-emerald-50 text-emerald-700 rounded-xl">
-            {syncSavedMessage}
-          </div>
-        )}
-
-        <div className="space-y-3 pt-2 text-xs">
-          {/* Device ID */}
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
-                Identitas Perangkat Unik (Device ID)
-              </span>
-              <button
-                onClick={copyDeviceId}
-                className="text-[11px] font-semibold text-[#731331] dark:text-rose-400 hover:underline flex items-center gap-1"
-              >
-                {copiedDeviceId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedDeviceId ? 'Tersalin' : 'Salin ID'}</span>
-              </button>
-            </div>
-            <div className="font-mono text-slate-500 text-[11px] break-all">
-              {settings?.deviceId || 'Belum dibuat'}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2">
-            <input
-              type="checkbox"
-              id="cloudSyncEnable"
-              checked={cloudSyncEnabled}
-              onChange={(e) => setCloudSyncEnabled(e.target.checked)}
-              className="w-4 h-4 rounded text-[#731331] focus:ring-[#731331]"
-            />
-            <label
-              htmlFor="cloudSyncEnable"
-              className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
-            >
-              Aktifkan Sinkronisasi Cloud Otomatis
-            </label>
-          </div>
-
-          {cloudSyncEnabled && (
-            <div className="space-y-3 pt-2">
-              <div className="space-y-1">
-                <label className="block font-semibold text-slate-700 dark:text-slate-300">
-                  Supabase Project URL
-                </label>
-                <input
-                  type="text"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://your-project-id.supabase.co"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#731331]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block font-semibold text-slate-700 dark:text-slate-300">
-                  Supabase Anon Public API Key
-                </label>
-                <input
-                  type="password"
-                  value={supabaseAnonKey}
-                  onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#731331] font-mono text-[11px]"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveCloudSync}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#731331] hover:bg-[#560e25] rounded-xl shadow-xs"
-              >
-                Simpan Konfigurasi Cloud
-              </button>
-            </div>
-          )}
-        </div>
+      {/* 5. Cloud Database (Supabase) */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
+        <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <Cloud className="w-4 h-4 text-sky-600" />
+          <span>Database Cloud Supabase</span>
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Data Dompetin disimpan langsung di Supabase. Koneksi diatur melalui Environment Variables project, bukan dari halaman pengaturan ini.
+        </p>
       </div>
 
       {/* 6. Application Info */}
@@ -515,7 +312,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Dompetin — Platform Finansial Personal
             </div>
             <div className="text-[11px] text-slate-400">
-              Versi 1.0.0 · Terinspirasi oleh Moni.id · Local-First Privacy
+              Versi 1.0.0 · Database Supabase
             </div>
           </div>
         </div>
@@ -656,8 +453,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Kosongkan Seluruh Data?
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Seluruh dompet, transaksi, anggaran, dan impian tabungan akan dihapus
-              permanen dari browser ini, sedangkan kategori bawaan tetap tersedia.
+              Seluruh dompet, transaksi, kategori, anggaran, dan impian tabungan akan dihapus permanen dari akun Supabase Anda.
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
@@ -670,8 +466,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onClick={async () => {
                   await onClearAllData();
                   setShowClearConfirm(false);
-                  setBackupMessage('Seluruh data berhasil dikosongkan.');
-                  setTimeout(() => setBackupMessage(''), 4000);
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs"
               >
