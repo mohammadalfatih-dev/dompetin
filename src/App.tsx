@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useFinanceData } from './hooks/useFinanceData';
-import { initializeDatabase } from './database/db';
 import { AppLayout } from './layouts/AppLayout';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { TransactionsView } from './features/transactions/TransactionsView';
@@ -37,13 +36,6 @@ export default function App() {
     }
     return false;
   });
-
-  // Initialize DB in clean state and sync dark mode class on mount
-  useEffect(() => {
-    initializeDatabase().catch((err) => {
-      console.warn('Database initialization note:', err);
-    });
-  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -89,6 +81,14 @@ export default function App() {
       await finance.addTransaction(data);
     }
   };
+
+  if (finance.loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300">Menghubungkan ke database Dompetin...</div>;
+  }
+
+  if (finance.connectionError) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6"><div className="max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm"><h1 className="text-xl font-bold text-slate-900 dark:text-white">Koneksi database belum siap</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{finance.connectionError}</p><p className="mt-3 text-xs text-slate-500">Pastikan Environment Variables Vercel sudah diisi dan Anonymous Sign-Ins aktif di Supabase Auth.</p><button onClick={() => finance.refresh()} className="mt-5 rounded-xl bg-[#731331] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button></div></div>;
+  }
 
   return (
     <AppLayout
@@ -209,12 +209,6 @@ export default function App() {
           setEditingTransaction(null);
         }}
         onSave={handleSaveTransaction}
-        onAddWallet={finance.addWallet}
-        onNavigateToWallets={() => {
-          setIsTxModalOpen(false);
-          setEditingTransaction(null);
-          setCurrentTab('wallets');
-        }}
         initialTransaction={editingTransaction}
         wallets={finance.wallets}
         categories={finance.categories}
