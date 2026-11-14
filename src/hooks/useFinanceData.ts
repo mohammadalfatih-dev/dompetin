@@ -17,7 +17,7 @@ const defaultSettings: AppSettings = {
 function mapWallet(row: any): Wallet {
   return {
     id: row.id, name: row.name || '', type: row.type || 'other',
-    initialBalance: Number(row.initial_balance || 0), accountNumber: row.account_number || undefined,
+    initialBalance: 0, accountNumber: row.account_number || undefined,
     color: row.color || '#731331', icon: row.icon || 'Wallet', isArchived: Boolean(row.is_archived),
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
@@ -131,13 +131,12 @@ export function useFinanceData() {
   const deleteTransaction = async (id: string) => run(async () => { const { error } = await supabase!.from('transactions').delete().eq('id', id); if (error) throw error; });
 
   const addWallet = async (data: Omit<Wallet, 'id' | 'createdAt' | 'updatedAt'>) => run(async () => {
-    const { error } = await supabase!.from('wallets').insert({ name: data.name, type: data.type, initial_balance: data.initialBalance || 0, account_number: data.accountNumber || null, color: data.color, icon: data.icon, is_archived: Boolean(data.isArchived) }); if (error) throw error;
+    const { error } = await supabase!.from('wallets').insert({ name: data.name, type: data.type, account_number: data.accountNumber || null, color: data.color, icon: data.icon, is_archived: Boolean(data.isArchived) }); if (error) throw error;
   });
   const updateWallet = async (id: string, updates: Partial<Wallet>) => run(async () => {
     const row: any = { updated_at: now() };
     if (updates.name !== undefined) row.name = updates.name;
     if (updates.type !== undefined) row.type = updates.type;
-    if (updates.initialBalance !== undefined) row.initial_balance = updates.initialBalance;
     if (updates.accountNumber !== undefined) row.account_number = updates.accountNumber || null;
     if (updates.color !== undefined) row.color = updates.color;
     if (updates.icon !== undefined) row.icon = updates.icon;
