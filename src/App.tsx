@@ -198,6 +198,9 @@ export default function App() {
           onUpdateCategory={finance.updateCategory}
           onDeleteCategory={finance.deleteCategory}
           onClearAllData={finance.clearAllData}
+          authEmail={finance.authEmail}
+          isGoogleLinked={finance.isGoogleLinked}
+          onConnectGoogle={finance.connectGoogleAccount}
         />
       )}
 

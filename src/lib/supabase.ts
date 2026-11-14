@@ -38,3 +38,31 @@ export async function ensureSupabaseUser() {
 
   return user;
 }
+
+
+/** Link the current anonymous Supabase user to Google without changing its user ID. */
+export async function linkGoogleAccount() {
+  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Sesi pengguna tidak ditemukan. Muat ulang Dompetin lalu coba lagi.');
+
+  const googleAlreadyLinked = (user.identities || []).some(
+    (identity) => identity.provider === 'google',
+  );
+  if (googleAlreadyLinked) {
+    throw new Error('Akun Google sudah terhubung dengan akun Dompetin ini.');
+  }
+
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  });
+
+  if (error) throw error;
+  if (!data?.url) throw new Error('Supabase tidak mengembalikan URL untuk menghubungkan Google.');
+
+  // linkIdentity returns an authorization URL; navigate while preserving the current session.
+  window.location.assign(data.url);
+}

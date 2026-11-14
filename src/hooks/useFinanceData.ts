@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, ensureSupabaseUser, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, ensureSupabaseUser, isSupabaseConfigured, linkGoogleAccount } from '../lib/supabase';
 import {
   Wallet, Category, Transaction, Budget, SavingsGoal, AppSettings, TransactionType,
 } from '../types/finance';
@@ -106,6 +106,8 @@ export function useFinanceData() {
   });
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
+  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!supabase || !isSupabaseConfigured) {
@@ -120,6 +122,8 @@ export function useFinanceData() {
 
     try {
       const user = await ensureSupabaseUser();
+      setAuthEmail(user.email || null);
+      setIsGoogleLinked((user.identities || []).some((identity) => identity.provider === 'google'));
 
       // Create starter categories for this signed-in user only when none exist.
       const { data: existingCategories, error: categoryCheckError } = await supabase
@@ -219,6 +223,10 @@ export function useFinanceData() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const connectGoogleAccount = async () => {
+    await linkGoogleAccount();
+  };
 
   const walletBalances = useMemo(
     () => calculateWalletBalances(wallets, transactions),
@@ -523,6 +531,9 @@ export function useFinanceData() {
     settings,
     loading,
     connectionError,
+    authEmail,
+    isGoogleLinked,
+    connectGoogleAccount,
     walletBalances,
     totals,
     totalBalance,
