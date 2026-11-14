@@ -34,6 +34,7 @@ interface SettingsViewProps {
   authEmail: string | null;
   isGoogleLinked: boolean;
   onConnectGoogle: () => Promise<void>;
+  onLogout: () => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -47,6 +48,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   authEmail,
   isGoogleLinked,
   onConnectGoogle,
+  onLogout,
 }) => {
   // Category management states
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -61,6 +63,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [googleLinkBusy, setGoogleLinkBusy] = useState(false);
   const [googleLinkError, setGoogleLinkError] = useState('');
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   const handleConnectGoogle = async () => {
     setGoogleLinkError('');
@@ -306,6 +310,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Check className="w-3.5 h-3.5" /> Google terhubung
             </span>
             {authEmail && <span className="text-slate-500 dark:text-slate-400">{authEmail}</span>}
+            <button
+              type="button"
+              disabled={logoutBusy}
+              onClick={async () => {
+                setLogoutError(''); setLogoutBusy(true);
+                try { await onLogout(); }
+                catch (error: any) { setLogoutError(error?.message || 'Gagal keluar dari akun.'); setLogoutBusy(false); }
+              }}
+              className="ml-auto rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
+            >{logoutBusy ? 'Keluar...' : 'Logout'}</button>
+            {logoutError && <div className="w-full text-xs text-rose-600">{logoutError}</div>}
           </div>
         ) : (
           <div className="space-y-2">

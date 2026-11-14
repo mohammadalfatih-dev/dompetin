@@ -66,3 +66,23 @@ export async function linkGoogleAccount() {
   // linkIdentity returns an authorization URL; navigate while preserving the current session.
   window.location.assign(data.url);
 }
+
+
+/** Start a normal Google sign-in for a previously linked Dompetin account. */
+export async function signInWithGoogle() {
+  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+  localStorage.removeItem('dompetin_explicit_logout');
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) throw error;
+}
+
+/** End the local session without deleting the Supabase user or their cloud data. */
+export async function signOutDompetin() {
+  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
+  if (error) throw error;
+  localStorage.setItem('dompetin_explicit_logout', 'true');
+}

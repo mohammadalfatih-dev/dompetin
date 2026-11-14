@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, ensureSupabaseUser, isSupabaseConfigured, linkGoogleAccount } from '../lib/supabase';
+import { supabase, ensureSupabaseUser, isSupabaseConfigured, linkGoogleAccount, signInWithGoogle, signOutDompetin } from '../lib/supabase';
 import {
   Wallet, Category, Transaction, Budget, SavingsGoal, AppSettings, TransactionType,
 } from '../types/finance';
@@ -22,8 +22,8 @@ function mapWallet(row: any): Wallet {
     id: row.id,
     name: row.name || '',
     type: row.type || 'other',
-    // Wallet balances are calculated from transactions in this project.
-    initialBalance: 0,
+    // Preserve the opening balance stored in Supabase.
+    initialBalance: Number(row.initial_balance || 0),
     accountNumber: row.account_number || undefined,
     color: row.color || '#731331',
     icon: row.icon || 'Wallet',
@@ -108,6 +108,7 @@ export function useFinanceData() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [isGoogleLinked, setIsGoogleLinked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!supabase || !isSupabaseConfigured) {
@@ -121,7 +122,22 @@ export function useFinanceData() {
     setLoading(true);
 
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      // After an intentional logout, do not silently create a new anonymous account.
+      if (!sessionData.session && localStorage.getItem('dompetin_explicit_logout') === 'true') {
+        setIsAuthenticated(false);
+        setAuthEmail(null);
+        setIsGoogleLinked(false);
+        setWallets([]); setCategories([]); setTransactions([]); setBudgets([]); setSavingsGoals([]);
+        setConnectionError(null);
+        return;
+      }
+
       const user = await ensureSupabaseUser();
+      localStorage.removeItem('dompetin_explicit_logout');
+      setIsAuthenticated(true);
       setAuthEmail(user.email || null);
       setIsGoogleLinked((user.identities || []).some((identity) => identity.provider === 'google'));
 
@@ -228,6 +244,21 @@ export function useFinanceData() {
     await linkGoogleAccount();
   };
 
+  const loginWithGoogle = async () => {
+    await signInWithGoogle();
+  };
+
+  const logout = async () => {
+    if (!isGoogleLinked) {
+      throw new Error('Hubungkan akun Google terlebih dahulu agar akun sementara dan datanya tidak hilang saat keluar.');
+    }
+    await signOutDompetin();
+    setIsAuthenticated(false);
+    setAuthEmail(null);
+    setIsGoogleLinked(false);
+    setWallets([]); setCategories([]); setTransactions([]); setBudgets([]); setSavingsGoals([]);
+  };
+
   const walletBalances = useMemo(
     () => calculateWalletBalances(wallets, transactions),
     [wallets, transactions],
@@ -308,6 +339,7 @@ export function useFinanceData() {
       const { error } = await supabase!.from('wallets').insert({
         name: data.name,
         type: data.type,
+        initial_balance: data.initialBalance || 0,
         account_number: data.accountNumber || null,
         color: data.color,
         icon: data.icon,
@@ -321,6 +353,7 @@ export function useFinanceData() {
       const row: any = { updated_at: now() };
       if (updates.name !== undefined) row.name = updates.name;
       if (updates.type !== undefined) row.type = updates.type;
+      if (updates.initialBalance !== undefined) row.initial_balance = updates.initialBalance;
       if (updates.accountNumber !== undefined) row.account_number = updates.accountNumber || null;
       if (updates.color !== undefined) row.color = updates.color;
       if (updates.icon !== undefined) row.icon = updates.icon;
@@ -533,7 +566,10 @@ export function useFinanceData() {
     connectionError,
     authEmail,
     isGoogleLinked,
+    isAuthenticated,
     connectGoogleAccount,
+    loginWithGoogle,
+    logout,
     walletBalances,
     totals,
     totalBalance,

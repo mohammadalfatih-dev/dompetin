@@ -13,6 +13,8 @@ import { Transaction, SavingsGoal } from './types/finance';
 
 export default function App() {
   const finance = useFinanceData();
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // Navigation tab state: 'dashboard' | 'transactions' | 'wallets' | 'budgets' | 'savings' | 'reports' | 'settings'
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -88,6 +90,24 @@ export default function App() {
 
   if (finance.connectionError) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6"><div className="max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm"><h1 className="text-xl font-bold text-slate-900 dark:text-white">Koneksi database belum siap</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{finance.connectionError}</p><p className="mt-3 text-xs text-slate-500">Pastikan Environment Variables Vercel sudah diisi dan Anonymous Sign-Ins aktif di Supabase Auth.</p><button onClick={() => finance.refresh()} className="mt-5 rounded-xl bg-[#731331] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button></div></div>;
+  }
+
+  if (!finance.isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-5">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-[#731331] dark:text-rose-300 text-2xl font-black">D</div>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Masuk ke Dompetin</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Masuk menggunakan akun Google yang sudah terhubung agar bisa mengakses kembali dompet dan transaksi kamu.</p>
+          <button
+            type="button" disabled={loginBusy}
+            onClick={async () => { setLoginError(''); setLoginBusy(true); try { await finance.loginWithGoogle(); } catch (error: any) { setLoginError(error?.message || 'Gagal memulai login Google.'); setLoginBusy(false); } }}
+            className="mt-6 w-full rounded-xl bg-[#731331] px-4 py-3 font-semibold text-white hover:bg-[#560e25] disabled:opacity-60"
+          >{loginBusy ? 'Mengalihkan ke Google...' : 'Lanjutkan dengan Google'}</button>
+          {loginError && <p className="mt-3 text-sm text-rose-600">{loginError}</p>}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -201,6 +221,7 @@ export default function App() {
           authEmail={finance.authEmail}
           isGoogleLinked={finance.isGoogleLinked}
           onConnectGoogle={finance.connectGoogleAccount}
+          onLogout={finance.logout}
         />
       )}
 
