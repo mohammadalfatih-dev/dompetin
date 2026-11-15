@@ -146,7 +146,7 @@ export function useFinanceData() {
       setIsGoogleLinked((user.identities || []).some((identity) => identity.provider === 'google'));
       setAuthProvider(user.app_metadata?.provider || user.identities?.[0]?.provider || 'email');
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
-      setProfileName(profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '');
+      setProfileName(profile?.full_name?.trim() || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Pengguna Dompetin');
 
       // Create starter categories for this signed-in user only when none exist.
       const { data: existingCategories, error: categoryCheckError } = await supabase

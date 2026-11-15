@@ -29,9 +29,34 @@ export async function getCurrentUser() {
 
 export async function ensureUserProfile(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, fullName?: string) {
   const client = getClient();
-  const name = fullName?.trim() || user.user_metadata?.full_name || user.user_metadata?.name || null;
+
+  // Preserve a name already saved in the profile before using auth metadata.
+  const { data: existingProfile, error: profileReadError } = await client
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileReadError) throw profileReadError;
+
+  const metadataName =
+    typeof user.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : typeof user.user_metadata?.name === 'string'
+        ? user.user_metadata.name
+        : '';
+
+  const emailName = user.email?.split('@')[0]?.replace(/[._-]+/g, ' ').trim() || '';
+  const name =
+    fullName?.trim() ||
+    existingProfile?.full_name?.trim() ||
+    metadataName.trim() ||
+    emailName ||
+    'Pengguna Dompetin';
+
+  // profiles.full_name is NOT NULL, so always provide a non-empty value.
   const { error } = await client.from('profiles').upsert(
-    { id: user.id, ...(name ? { full_name: name } : {}) },
+    { id: user.id, full_name: name },
     { onConflict: 'id' },
   );
   if (error) throw error;
