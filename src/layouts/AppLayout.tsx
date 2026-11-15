@@ -188,7 +188,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               { id: 'budgets', label: 'Anggaran', icon: PieChart },
               { id: 'savings', label: 'Tabungan', icon: Target },
               { id: 'reports', label: 'Laporan', icon: BarChart3 },
-              { id: 'settings', label: 'Pengaturan', icon: Settings },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -262,19 +261,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <span className="text-[10px] mt-0.5">Dompet</span>
           </button>
 
-          {/* 5. More menu: budgets, savings, reports, and settings */}
+          {/* 5. Settings: keep account access visible on mobile */}
           <button
-            onClick={() => setShowMoreMenu((open) => !open)}
-            aria-expanded={showMoreMenu}
-            aria-label="Buka menu lainnya"
+            onClick={() => {
+              setShowMoreMenu(false);
+              onSelectTab('settings');
+            }}
+            aria-label="Pengaturan akun"
             className={`flex flex-col items-center justify-center py-1.5 min-h-[44px] transition-colors ${
-              showMoreMenu || ['budgets', 'savings', 'reports', 'settings'].includes(currentTab)
+              currentTab === 'settings'
                 ? 'text-[#731331] dark:text-rose-400 font-bold'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <Settings className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Lainnya</span>
+            <span className="text-[10px] mt-0.5">Pengaturan</span>
           </button>
         </div>
       </nav>
