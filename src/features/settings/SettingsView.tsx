@@ -32,9 +32,9 @@ interface SettingsViewProps {
   onDeleteCategory: (id: string) => Promise<any>;
   onClearAllData: () => Promise<void>;
   authEmail: string | null;
-  isGoogleLinked: boolean;
-  onConnectGoogle: () => Promise<void>;
-  onLoginGoogle: () => Promise<void>;
+  authProvider: string | null;
+  profileName: string;
+
   onLogout: () => Promise<void>;
 }
 
@@ -47,9 +47,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteCategory,
   onClearAllData,
   authEmail,
-  isGoogleLinked,
-  onConnectGoogle,
-  onLoginGoogle,
+  authProvider,
+  profileName,
   onLogout,
 }) => {
   // Category management states
@@ -310,70 +309,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Google account connection */}
+      {/* 4. Account details */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
         <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Shield className="w-4 h-4 text-[#731331]" />
           <span>Akun Dompetin</span>
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Hubungkan akun sementara ini ke Google agar akun Dompetin memiliki identitas permanen. Proses ini mempertahankan ID pengguna dan data yang sudah tersimpan.
-        </p>
-        {isGoogleLinked ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 font-semibold text-emerald-700 dark:text-emerald-300">
-              <Check className="w-3.5 h-3.5" /> Google terhubung
-            </span>
-            {authEmail && <span className="text-slate-500 dark:text-slate-400">{authEmail}</span>}
-            <button
-              type="button"
-              disabled={logoutBusy}
-              onClick={async () => {
-                setLogoutError(''); setLogoutBusy(true);
-                try { await onLogout(); }
-                catch (error: any) { setLogoutError(error?.message || 'Gagal keluar dari akun.'); setLogoutBusy(false); }
-              }}
-              className="ml-auto rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
-            >{logoutBusy ? 'Keluar...' : 'Logout'}</button>
-            {logoutError && <div className="w-full text-xs text-rose-600">{logoutError}</div>}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="text-xs text-slate-600 dark:text-slate-300">Status: akun sementara belum terhubung ke Google.</div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleLoginGoogle}
-                disabled={googleLoginBusy || googleLinkBusy}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#731331] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#560e25] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                {googleLoginBusy ? 'Membuka Google...' : 'Login dengan Google'}
-              </button>
-              <button
-                type="button"
-                onClick={handleConnectGoogle}
-                disabled={googleLinkBusy || googleLoginBusy}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                {googleLinkBusy ? 'Menghubungkan...' : 'Hubungkan akun sementara'}
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Pilih Login dengan Google jika akun Google kamu sudah pernah dipakai di Dompetin. Pilih Hubungkan akun sementara hanya jika ingin mengikat akun sementara ini ke Google yang belum terdaftar.
-            </p>
-            {googleLoginError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
-                {googleLoginError}
-              </div>
-            )}
-            {googleLinkError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
-                {googleLinkError}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="grid gap-2 text-sm">
+          <div><span className="text-slate-500">Nama pengguna: </span><strong className="text-slate-900 dark:text-white">{profileName || '—'}</strong></div>
+          <div><span className="text-slate-500">Email: </span><strong className="text-slate-900 dark:text-white">{authEmail || '—'}</strong></div>
+          <div><span className="text-slate-500">Metode login: </span><strong className="text-slate-900 dark:text-white capitalize">{authProvider || '—'}</strong></div>
+        </div>
+        <button type="button" disabled={logoutBusy} onClick={async () => { setLogoutError(''); setLogoutBusy(true); try { await onLogout(); } catch (error: any) { setLogoutError(error?.message || 'Gagal keluar dari akun.'); setLogoutBusy(false); } }} className="rounded-xl border border-rose-200 px-4 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30">{logoutBusy ? 'Keluar...' : 'Logout'}</button>
+        {logoutError && <div className="text-xs text-rose-600">{logoutError}</div>}
       </div>
 
       {/* 5. Supabase Data Management */}
