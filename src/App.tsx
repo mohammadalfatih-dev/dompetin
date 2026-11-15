@@ -15,6 +15,10 @@ export default function App() {
   const finance = useFinanceData();
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [authMode, setAuthMode] = useState<'welcome' | 'signup' | 'login'>('welcome');
+  const [authEmailInput, setAuthEmailInput] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [profileNameInput, setProfileNameInput] = useState('');
 
   // Navigation tab state: 'dashboard' | 'transactions' | 'wallets' | 'budgets' | 'savings' | 'reports' | 'settings'
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -89,23 +93,70 @@ export default function App() {
   }
 
   if (finance.connectionError) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6"><div className="max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm"><h1 className="text-xl font-bold text-slate-900 dark:text-white">Koneksi database belum siap</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{finance.connectionError}</p><p className="mt-3 text-xs text-slate-500">Pastikan Environment Variables Vercel sudah diisi dan Anonymous Sign-Ins aktif di Supabase Auth.</p><button onClick={() => finance.refresh()} className="mt-5 rounded-xl bg-[#731331] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button></div></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6"><div className="max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm"><h1 className="text-xl font-bold text-slate-900 dark:text-white">Koneksi database belum siap</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{finance.connectionError}</p><p className="mt-3 text-xs text-slate-500">Pastikan Environment Variables Vercel sudah diisi dan Supabase Auth configurado correctamente.</p><button onClick={() => finance.refresh()} className="mt-5 rounded-xl bg-[#731331] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button></div></div>;
   }
 
   if (!finance.isAuthenticated) {
+    const submitEmailAuth = async (event: React.FormEvent) => {
+      event.preventDefault();
+      setLoginError('');
+      setLoginBusy(true);
+      try {
+        if (authMode === 'signup') {
+          const result = await finance.registerWithEmail(authEmailInput, authPassword);
+          if (!result.session) {
+            setLoginError('Akun berhasil dibuat. Periksa email untuk konfirmasi, lalu login.');
+            setAuthMode('login');
+          } else {
+            await finance.refresh();
+          }
+        } else {
+          await finance.loginWithEmail(authEmailInput, authPassword);
+        }
+      } catch (error: any) {
+        setLoginError(error?.message || 'Autentikasi gagal.');
+      } finally {
+        setLoginBusy(false);
+      }
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-5">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-center">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-[#731331] dark:text-rose-300 text-2xl font-black">D</div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Masuk ke Dompetin</h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Masuk menggunakan akun Google yang sudah terhubung agar bisa mengakses kembali dompet dan transaksi kamu.</p>
-          <button
-            type="button" disabled={loginBusy}
-            onClick={async () => { setLoginError(''); setLoginBusy(true); try { await finance.loginWithGoogle(); } catch (error: any) { setLoginError(error?.message || 'Gagal memulai login Google.'); setLoginBusy(false); } }}
-            className="mt-6 w-full rounded-xl bg-[#731331] px-4 py-3 font-semibold text-white hover:bg-[#560e25] disabled:opacity-60"
-          >{loginBusy ? 'Mengalihkan ke Google...' : 'Lanjutkan dengan Google'}</button>
+          <h1 className="text-2xl font-extrabold text-center text-slate-900 dark:text-white">Selamat datang di Dompetin</h1>
+          <p className="mt-2 text-sm text-center text-slate-600 dark:text-slate-300">Catat keuanganmu, pahami alurnya, dan tumbuh lebih terarah.</p>
+          {authMode === 'welcome' ? (
+            <div className="mt-6 space-y-3">
+              <button type="button" disabled={loginBusy} onClick={async () => { setLoginError(''); setLoginBusy(true); try { await finance.loginWithGoogle(); } catch (error: any) { setLoginError(error?.message || 'Gagal memulai login Google.'); setLoginBusy(false); } }} className="w-full rounded-xl bg-[#731331] px-4 py-3 font-semibold text-white hover:bg-[#560e25] disabled:opacity-60">{loginBusy ? 'Mengalihkan...' : 'Lanjutkan dengan Google'}</button>
+              <button type="button" onClick={() => { setLoginError(''); setAuthMode('signup'); }} className="w-full rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Buat akun baru</button>
+              <button type="button" onClick={() => { setLoginError(''); setAuthMode('login'); }} className="w-full px-4 py-2 text-sm font-semibold text-[#731331]">Sudah punya akun? Login</button>
+            </div>
+          ) : (
+            <form onSubmit={submitEmailAuth} className="mt-6 space-y-3">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{authMode === 'signup' ? 'Daftar dengan Email' : 'Login dengan Email'}</h2>
+              <input required type="email" autoComplete="email" value={authEmailInput} onChange={e => setAuthEmailInput(e.target.value)} placeholder="Alamat email" className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-white" />
+              <input required minLength={6} type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="Password (minimal 6 karakter)" className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-white" />
+              <button disabled={loginBusy} className="w-full rounded-xl bg-[#731331] px-4 py-3 font-semibold text-white disabled:opacity-60">{loginBusy ? 'Memproses...' : authMode === 'signup' ? 'Daftar' : 'Login'}</button>
+              <button type="button" onClick={() => { setLoginError(''); setAuthMode('welcome'); }} className="w-full py-2 text-sm text-slate-500">Kembali</button>
+            </form>
+          )}
           {loginError && <p className="mt-3 text-sm text-rose-600">{loginError}</p>}
         </div>
+      </div>
+    );
+  }
+
+  if (!finance.profileName) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-5">
+        <form onSubmit={async (event) => { event.preventDefault(); setLoginBusy(true); setLoginError(''); try { await finance.saveProfileName(profileNameInput); } catch (error: any) { setLoginError(error?.message || 'Gagal menyimpan nama.'); } finally { setLoginBusy(false); } }} className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Siapa nama kamu?</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Nama ini akan ditampilkan di akun Dompetin.</p>
+          <input required value={profileNameInput} onChange={e => setProfileNameInput(e.target.value)} placeholder="Nama pengguna" className="mt-5 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-white" />
+          <button disabled={loginBusy} className="mt-3 w-full rounded-xl bg-[#731331] px-4 py-3 font-semibold text-white disabled:opacity-60">{loginBusy ? 'Menyimpan...' : 'Lanjutkan'}</button>
+          {loginError && <p className="mt-3 text-sm text-rose-600">{loginError}</p>}
+        </form>
       </div>
     );
   }
@@ -219,9 +270,8 @@ export default function App() {
           onDeleteCategory={finance.deleteCategory}
           onClearAllData={finance.clearAllData}
           authEmail={finance.authEmail}
-          isGoogleLinked={finance.isGoogleLinked}
-          onConnectGoogle={finance.connectGoogleAccount}
-          onLoginGoogle={finance.loginWithGoogle}
+          authProvider={finance.authProvider}
+          profileName={finance.profileName}
           onLogout={finance.logout}
         />
       )}

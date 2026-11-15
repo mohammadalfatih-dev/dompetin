@@ -15,74 +15,74 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
-export async function ensureSupabaseUser() {
+function getClient() {
   if (!supabase) throw new Error('Supabase belum dikonfigurasi. Periksa VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.');
+  return supabase;
+}
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
-
-  let user = session?.user;
-  if (!user) {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) throw new Error(`Gagal membuat sesi pengguna sementara: ${error.message}. Pastikan Anonymous Sign-Ins aktif di Supabase Auth.`);
-    user = data.user;
-  }
-
-  if (!user) throw new Error('Sesi pengguna Supabase tidak tersedia.');
-
-  // profiles.id must equal auth.users.id. Never generate a separate profile UUID.
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .upsert({ id: user.id, full_name: user.user_metadata?.full_name || 'Pengguna Dompetin' }, { onConflict: 'id' });
-  if (profileError) throw profileError;
-
+export async function getCurrentUser() {
+  const client = getClient();
+  const { data: { user }, error } = await client.auth.getUser();
+  if (error) throw error;
   return user;
 }
 
-
-/** Link the current anonymous Supabase user to Google without changing its user ID. */
-export async function linkGoogleAccount() {
-  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
-
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  if (!user) throw new Error('Sesi pengguna tidak ditemukan. Muat ulang Dompetin lalu coba lagi.');
-
-  const googleAlreadyLinked = (user.identities || []).some(
-    (identity) => identity.provider === 'google',
+export async function ensureUserProfile(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, fullName?: string) {
+  const client = getClient();
+  const name = fullName?.trim() || user.user_metadata?.full_name || user.user_metadata?.name || null;
+  const { error } = await client.from('profiles').upsert(
+    { id: user.id, ...(name ? { full_name: name } : {}) },
+    { onConflict: 'id' },
   );
-  if (googleAlreadyLinked) {
-    throw new Error('Akun Google sudah terhubung dengan akun Dompetin ini.');
-  }
-
-  const { data, error } = await supabase.auth.linkIdentity({
-    provider: 'google',
-    options: { redirectTo: window.location.origin },
-  });
-
   if (error) throw error;
-  if (!data?.url) throw new Error('Supabase tidak mengembalikan URL untuk menghubungkan Google.');
-
-  // linkIdentity returns an authorization URL; navigate while preserving the current session.
-  window.location.assign(data.url);
 }
 
+export async function signUpWithEmail(email: string, password: string) {
+  const client = getClient();
+  const { data, error } = await client.auth.signUp({ email: email.trim(), password });
+  if (error) throw error;
+  if (data.user && data.session) await ensureUserProfile(data.user);
+  return data;
+}
 
-/** Start a normal Google sign-in for a previously linked Dompetin account. */
-export async function signInWithGoogle() {
-  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+export async function signInWithEmail(email: string, password: string) {
+  const client = getClient();
   localStorage.removeItem('dompetin_explicit_logout');
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+  if (data.user) await ensureUserProfile(data.user);
+  return data;
+}
+
+export async function signInWithGoogle() {
+  const client = getClient();
+  localStorage.removeItem('dompetin_explicit_logout');
+  const { error } = await client.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin },
   });
   if (error) throw error;
 }
 
-/** End the local session without deleting the Supabase user or their cloud data. */
+export async function updateUserProfileName(fullName: string) {
+  const client = getClient();
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Sesi login tidak ditemukan.');
+  const cleanName = fullName.trim();
+  if (!cleanName) throw new Error('Nama pengguna wajib diisi.');
+  const { error } = await client.from('profiles').upsert(
+    { id: user.id, full_name: cleanName },
+    { onConflict: 'id' },
+  );
+  if (error) throw error;
+  const { error: metadataError } = await client.auth.updateUser({ data: { full_name: cleanName } });
+  if (metadataError) throw metadataError;
+}
+
 export async function signOutDompetin() {
-  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
-  const { error } = await supabase.auth.signOut({ scope: 'local' });
+  const client = getClient();
+  const { error } = await client.auth.signOut({ scope: 'local' });
   if (error) throw error;
   localStorage.setItem('dompetin_explicit_logout', 'true');
 }
