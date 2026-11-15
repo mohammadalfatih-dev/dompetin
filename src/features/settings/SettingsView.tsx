@@ -62,34 +62,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Backup / Restore states
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [googleLinkBusy, setGoogleLinkBusy] = useState(false);
-  const [googleLinkError, setGoogleLinkError] = useState('');
-  const [googleLoginBusy, setGoogleLoginBusy] = useState(false);
-  const [googleLoginError, setGoogleLoginError] = useState('');
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState('');
-
-  const handleConnectGoogle = async () => {
-    setGoogleLinkError('');
-    setGoogleLinkBusy(true);
-    try {
-      await onConnectGoogle();
-    } catch (error: any) {
-      setGoogleLinkError(error?.message || 'Gagal menghubungkan akun Google.');
-      setGoogleLinkBusy(false);
-    }
-  };
-
-  const handleLoginGoogle = async () => {
-    setGoogleLoginError('');
-    setGoogleLoginBusy(true);
-    try {
-      await onLoginGoogle();
-    } catch (error: any) {
-      setGoogleLoginError(error?.message || 'Gagal memulai login Google.');
-      setGoogleLoginBusy(false);
-    }
-  };
 
   // Cloud sync settings
 
