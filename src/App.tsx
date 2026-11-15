@@ -221,6 +221,7 @@ export default function App() {
           authEmail={finance.authEmail}
           isGoogleLinked={finance.isGoogleLinked}
           onConnectGoogle={finance.connectGoogleAccount}
+          onLoginGoogle={finance.loginWithGoogle}
           onLogout={finance.logout}
         />
       )}

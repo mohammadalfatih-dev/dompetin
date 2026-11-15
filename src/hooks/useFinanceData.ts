@@ -240,6 +240,20 @@ export function useFinanceData() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!supabase) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Refresh after OAuth sign-in/callback so the account badge and cloud data update.
+      // SIGNED_OUT is intentionally excluded: logout must not create a replacement anon user.
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        Promise.resolve().then(() => { void refresh(); });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [refresh]);
+
   const connectGoogleAccount = async () => {
     await linkGoogleAccount();
   };

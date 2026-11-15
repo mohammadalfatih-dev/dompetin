@@ -34,6 +34,7 @@ interface SettingsViewProps {
   authEmail: string | null;
   isGoogleLinked: boolean;
   onConnectGoogle: () => Promise<void>;
+  onLoginGoogle: () => Promise<void>;
   onLogout: () => Promise<void>;
 }
 
@@ -48,6 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   authEmail,
   isGoogleLinked,
   onConnectGoogle,
+  onLoginGoogle,
   onLogout,
 }) => {
   // Category management states
@@ -63,6 +65,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [googleLinkBusy, setGoogleLinkBusy] = useState(false);
   const [googleLinkError, setGoogleLinkError] = useState('');
+  const [googleLoginBusy, setGoogleLoginBusy] = useState(false);
+  const [googleLoginError, setGoogleLoginError] = useState('');
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
@@ -74,6 +78,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } catch (error: any) {
       setGoogleLinkError(error?.message || 'Gagal menghubungkan akun Google.');
       setGoogleLinkBusy(false);
+    }
+  };
+
+  const handleLoginGoogle = async () => {
+    setGoogleLoginError('');
+    setGoogleLoginBusy(true);
+    try {
+      await onLoginGoogle();
+    } catch (error: any) {
+      setGoogleLoginError(error?.message || 'Gagal memulai login Google.');
+      setGoogleLoginBusy(false);
     }
   };
 
@@ -325,18 +340,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ) : (
           <div className="space-y-2">
             <div className="text-xs text-slate-600 dark:text-slate-300">Status: akun sementara belum terhubung ke Google.</div>
-            <button
-              type="button"
-              onClick={handleConnectGoogle}
-              disabled={googleLinkBusy}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#731331] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#560e25] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              {googleLinkBusy ? 'Menghubungkan...' : 'Hubungkan dengan Google'}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleLoginGoogle}
+                disabled={googleLoginBusy || googleLinkBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#731331] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#560e25] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {googleLoginBusy ? 'Membuka Google...' : 'Login dengan Google'}
+              </button>
+              <button
+                type="button"
+                onClick={handleConnectGoogle}
+                disabled={googleLinkBusy || googleLoginBusy}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {googleLinkBusy ? 'Menghubungkan...' : 'Hubungkan akun sementara'}
+              </button>
+            </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Gunakan akun Google yang ingin dipakai untuk masuk ke Dompetin. Jangan hapus data browser atau keluar dari akun sebelum proses penghubungan selesai.
+              Pilih Login dengan Google jika akun Google kamu sudah pernah dipakai di Dompetin. Pilih Hubungkan akun sementara hanya jika ingin mengikat akun sementara ini ke Google yang belum terdaftar.
             </p>
+            {googleLoginError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+                {googleLoginError}
+              </div>
+            )}
             {googleLinkError && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
                 {googleLinkError}
