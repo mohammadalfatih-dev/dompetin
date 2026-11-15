@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, ensureSupabaseUser, isSupabaseConfigured, linkGoogleAccount, signInWithGoogle, signOutDompetin } from '../lib/supabase';
+import { supabase, ensureUserProfile, isSupabaseConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signOutDompetin, updateUserProfileName } from '../lib/supabase';
 import {
   Wallet, Category, Transaction, Budget, SavingsGoal, AppSettings, TransactionType,
 } from '../types/finance';
@@ -108,7 +108,9 @@ export function useFinanceData() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [isGoogleLinked, setIsGoogleLinked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [authProvider, setAuthProvider] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!supabase || !isSupabaseConfigured) {
@@ -125,21 +127,26 @@ export function useFinanceData() {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
-      // After an intentional logout, do not silently create a new anonymous account.
-      if (!sessionData.session && localStorage.getItem('dompetin_explicit_logout') === 'true') {
+      const user = sessionData.session?.user;
+      if (!user) {
         setIsAuthenticated(false);
         setAuthEmail(null);
         setIsGoogleLinked(false);
+        setAuthProvider(null);
+        setProfileName('');
         setWallets([]); setCategories([]); setTransactions([]); setBudgets([]); setSavingsGoals([]);
         setConnectionError(null);
         return;
       }
 
-      const user = await ensureSupabaseUser();
       localStorage.removeItem('dompetin_explicit_logout');
+      await ensureUserProfile(user);
       setIsAuthenticated(true);
       setAuthEmail(user.email || null);
       setIsGoogleLinked((user.identities || []).some((identity) => identity.provider === 'google'));
+      setAuthProvider(user.app_metadata?.provider || user.identities?.[0]?.provider || 'email');
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      setProfileName(profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '');
 
       // Create starter categories for this signed-in user only when none exist.
       const { data: existingCategories, error: categoryCheckError } = await supabase
@@ -254,22 +261,17 @@ export function useFinanceData() {
     return () => subscription.unsubscribe();
   }, [refresh]);
 
-  const connectGoogleAccount = async () => {
-    await linkGoogleAccount();
-  };
-
-  const loginWithGoogle = async () => {
-    await signInWithGoogle();
-  };
-
+  const loginWithGoogle = async () => { await signInWithGoogle(); };
+  const loginWithEmail = async (email: string, password: string) => { await signInWithEmail(email, password); await refresh(); };
+  const registerWithEmail = async (email: string, password: string) => signUpWithEmail(email, password);
+  const saveProfileName = async (name: string) => { await updateUserProfileName(name); await refresh(); };
   const logout = async () => {
-    if (!isGoogleLinked) {
-      throw new Error('Hubungkan akun Google terlebih dahulu agar akun sementara dan datanya tidak hilang saat keluar.');
-    }
     await signOutDompetin();
     setIsAuthenticated(false);
     setAuthEmail(null);
     setIsGoogleLinked(false);
+    setAuthProvider(null);
+    setProfileName('');
     setWallets([]); setCategories([]); setTransactions([]); setBudgets([]); setSavingsGoals([]);
   };
 
@@ -580,9 +582,13 @@ export function useFinanceData() {
     connectionError,
     authEmail,
     isGoogleLinked,
+    authProvider,
+    profileName,
     isAuthenticated,
-    connectGoogleAccount,
     loginWithGoogle,
+    loginWithEmail,
+    registerWithEmail,
+    saveProfileName,
     logout,
     walletBalances,
     totals,
