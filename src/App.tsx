@@ -270,7 +270,6 @@ export default function App() {
           onDeleteCategory={finance.deleteCategory}
           onClearAllData={finance.clearAllData}
           authEmail={finance.authEmail}
-          authEmail={finance.authEmail}
           authProvider={finance.authProvider}
           profileName={finance.profileName}
           onLogout={finance.logout}
