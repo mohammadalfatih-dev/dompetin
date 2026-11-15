@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, getCurrentUser, ensureUserProfile, isSupabaseConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signOutDompetin, updateUserProfileName } from '../lib/supabase';
+import { supabase, ensureUserProfile, isSupabaseConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signOutDompetin, updateUserProfileName } from '../lib/supabase';
 import {
   Wallet, Category, Transaction, Budget, SavingsGoal, AppSettings, TransactionType,
 } from '../types/finance';
